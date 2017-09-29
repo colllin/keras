@@ -20,8 +20,43 @@ _keras_dir = os.path.join(_keras_base_dir, '.keras')
 # Default backend: TensorFlow.
 _BACKEND = 'tensorflow'
 
-# Attempt to read Keras config file.
+# Walk up the path to find the `.keras` dir.
+# From https://github.com/gitpython-developers/GitPython/blob/a5f034355962c5156f20b4de519aae18478b413a/git/repo/base.py#L109
+# FIXME
+curpath = os.getcwd()
+while curpath:
+    # ABOUT osp.NORMPATH
+    # It's important to normalize the paths, as submodules will otherwise initialize their
+    # repo instances with paths that depend on path-portions that will not exist after being
+    # removed. It's just cleaner.
+    if is_git_dir(curpath):
+        self.git_dir = curpath
+        self._working_tree_dir = os.getenv('GIT_WORK_TREE', os.path.dirname(self.git_dir))
+        break
+
+    dotgit = osp.join(curpath, '.git')
+    sm_gitpath = find_submodule_git_dir(dotgit)
+    if sm_gitpath is not None:
+        self.git_dir = osp.normpath(sm_gitpath)
+
+    sm_gitpath = find_submodule_git_dir(dotgit)
+    if sm_gitpath is None:
+        sm_gitpath = find_worktree_git_dir(dotgit)
+
+    if sm_gitpath is not None:
+        self.git_dir = expand_path(sm_gitpath, expand_vars)
+        self._working_tree_dir = curpath
+        break
+
+    if not search_parent_directories:
+        break
+    curpath, tail = osp.split(curpath)
+    if not tail:
+        break
+
 _config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
+
+# Attempt to read Keras config file.
 if os.path.exists(_config_path):
     try:
         _config = json.load(open(_config_path))
