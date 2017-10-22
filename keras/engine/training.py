@@ -1542,6 +1542,7 @@ class Model(Container):
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y,
                 sample_weight=val_sample_weight,
+                class_weight=class_weight,
                 check_batch_axis=False,
                 batch_size=batch_size)
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
@@ -1769,7 +1770,9 @@ class Model(Container):
             return outputs[0]
         return outputs
 
-    def test_on_batch(self, x, y, sample_weight=None):
+    def test_on_batch(self, x, y,
+                      sample_weight=None,
+                      class_weight=None):
         """Test the model on a single batch of samples.
 
         # Arguments
@@ -1790,6 +1793,12 @@ class Model(Container):
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
                 sample_weight_mode="temporal" in compile().
+            class_weight: Optional dictionary mapping
+                class indices (integers) to
+                a weight (float) to apply to the model's loss for the samples
+                from this class during training.
+                This can be useful to tell the model to "pay more attention" to
+                samples from an under-represented class.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1800,6 +1809,7 @@ class Model(Container):
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
+            class_weight=class_weight,
             check_batch_axis=True)
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [0.]
@@ -1980,7 +1990,9 @@ class Model(Container):
                                  'or `(val_x, val_y)`. Found: ' +
                                  str(validation_data))
             val_x, val_y, val_sample_weights = self._standardize_user_data(
-                val_x, val_y, val_sample_weight)
+                val_x, val_y,
+                sample_weight=val_sample_weight,
+                class_weight=class_weight)
             val_data = val_x + val_y + val_sample_weights
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_data += [0.]
@@ -2064,6 +2076,7 @@ class Model(Container):
                             val_outs = self.evaluate_generator(
                                 validation_data,
                                 validation_steps,
+                                class_weight=class_weight,
                                 max_queue_size=max_queue_size,
                                 workers=workers,
                                 use_multiprocessing=use_multiprocessing)
@@ -2098,6 +2111,7 @@ class Model(Container):
 
     @interfaces.legacy_generator_methods_support
     def evaluate_generator(self, generator, steps,
+                           class_weight=None,
                            max_queue_size=10,
                            workers=1,
                            use_multiprocessing=False):
@@ -2114,6 +2128,12 @@ class Model(Container):
                     when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
+            class_weight: Optional dictionary mapping
+                class indices (integers) to
+                a weight (float) to apply to the model's loss for the samples
+                from this class during training.
+                This can be useful to tell the model to "pay more attention" to
+                samples from an under-represented class.
             max_queue_size: maximum size for the generator queue
             workers: maximum number of processes to spin up
                 when using process based threading
@@ -2178,7 +2198,9 @@ class Model(Container):
                                      '(x, y, sample_weight) '
                                      'or (x, y). Found: ' +
                                      str(generator_output))
-                outs = self.test_on_batch(x, y, sample_weight=sample_weight)
+                outs = self.test_on_batch(x, y,
+                                          sample_weight=sample_weight,
+                                          class_weight=class_weight)
 
                 if isinstance(x, list):
                     batch_size = len(x[0])
